@@ -2,8 +2,13 @@
 // README at: https://github.com/devcontainers/templates/tree/main/src/rust
 {
 	"name": "Rust",
+  	"dockerComposeFile": [
+		"./docker-compose.yaml"
+	],
+	"service": "app",
+	"workspaceFolder": "/app"
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "mcr.microsoft.com/devcontainers/rust:1-1-bullseye"
+	// "image": "mcr.microsoft.com/devcontainers/rust:1-1-bullseye"
 	// Use 'mounts' to make the cargo cache persistent in a Docker Volume.
 	// "mounts": [
 	// 	{
