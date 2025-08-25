@@ -1,0 +1,6 @@
+services:
+  app:
+    environment:
+      - SSH_AUTH_SOCK=/tmp/ssh-agent.sock
+    volumes:
+      - "$SSH_AUTH_SOCK:/tmp/ssh-agent.sock"

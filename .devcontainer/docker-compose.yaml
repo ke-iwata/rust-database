@@ -1,11 +1,8 @@
 services:
   app:
     build: .
-    environment:
-      - SSH_AUTH_SOCK=/tmp/ssh-agent.sock
     volumes:
       - ..:/app
-      - "$SSH_AUTH_SOCK:/tmp/ssh-agent.sock"
     working_dir: /app
     stdin_open: true
     tty: true  
