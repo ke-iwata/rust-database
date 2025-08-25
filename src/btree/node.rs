@@ -4,7 +4,7 @@
 
 use std::fmt::Debug;
 
-pub static NODE_SIZE: usize = 2;
+pub static NODE_SIZE: usize = 5;
 
 pub struct BTreeNode<K, V> {
     pub keys: Vec<K>,
@@ -66,39 +66,37 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
                 if !self.is_leaf {
                     let (ok, new_node) = self.insert_to_child_node(key, value, idx);
 
-                    // 子ノードが分割or追加された場合、新しい子ノードを挿入
+                    // 子ノードがされた場合、新しい子ノードを挿入
                     if let Some(new_node) = new_node {
                         // If the child was split, we need to insert the median key into this node
                         let median_key = new_node.keys[0].clone();
                         let median_value = new_node.values[0].clone();
+                        self.keys.insert(idx, median_key);
+                        self.values.insert(idx, median_value);
+                        self.children.insert(idx + 1, Box::new(new_node));
 
                         // Nodeのサイズを超えないとき
-                        if self.keys.len() < (NODE_SIZE-1) {
-                            self.keys.insert(idx, median_key);
-                            self.values.insert(idx, median_value);
-                            self.children.insert(idx + 1, Box::new(new_node));
+                        if self.values.len() <= NODE_SIZE {
                             return (ok, None);
                         }
 
-                        // Nodeのサイズを超えるとき
+                        // Nodeのサイズを超えるときは分割
                         let mid_size = NODE_SIZE / 2;
-                        let right_keys = self.keys.split_off(mid_size);
-                        let right_values = self.values.split_off(mid_size);
-                        let right_child = self.children.split_off(mid_size);
+                        let right_keys = self.keys.split_off(mid_size + 1);
+                        let right_values = self.values.split_off(mid_size + 1);
+                        let right_child = self.children.split_off(mid_size + 2);
                         let mut right_node = BTreeNode {
                             keys: right_keys,
                             values: right_values,
                             children: right_child,
                             is_leaf: self.is_leaf,
                         };
-                        if idx < mid_size {
-                            self.keys.insert(idx, median_key);
-                            self.values.insert(idx, median_value);
-                            self.children.insert(idx, Box::new(new_node));
-                        } else {
-                            right_node.keys.insert(idx - mid_size, median_key);
-                            right_node.values.insert(idx - mid_size, median_value);
-                            right_node.children.insert(idx - mid_size, Box::new(new_node));
+                        if right_node.children.len() == 1 {
+                            let child = right_node.children[0].as_ref();
+                            if right_node.keys[0] == child.keys[0] {
+                                right_node.children.clear();
+                                right_node.is_leaf = true;
+                            }
                         }
                         return (true, Some(right_node));
                     }
@@ -106,24 +104,18 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
                 }
 
                 // Leaf Nodeの場合、ここに挿入
-                if self.keys.len() < (NODE_SIZE-1) {
-                    self.keys.insert(idx, key);
-                    self.values.insert(idx, value);
+                self.keys.insert(idx, key);
+                self.values.insert(idx, value);
+
+                if self.keys.len() <= NODE_SIZE {
+                    // Nodeが収まっている場合はそのまま
                     (true, None)
                 } else {
                     // Nodeが満杯の場合、分割する
                     let mid_size = NODE_SIZE / 2;
-                    let right_keys = self.keys.split_off(mid_size);
-                    let right_values = self.values.split_off(mid_size);
-                    let mut new_leaf = BTreeNode::new_leaf(right_keys, right_values);
-                    if idx < mid_size {
-                        self.keys.insert(idx, key);
-                        self.values.insert(idx, value);
-                    } else {
-                        new_leaf.keys.insert(idx - mid_size, key);
-                        new_leaf.values.insert(idx - mid_size, value);
-                    }
-                    (true, Some(new_leaf))
+                    let right_keys = self.keys.split_off(mid_size + 1);
+                    let right_values = self.values.split_off(mid_size + 1);
+                    (true, Some(BTreeNode::new_leaf(right_keys, right_values)))
                 }
             }
         }
@@ -138,7 +130,8 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
                 (false, None)
             }
         } else {
-            (true, Some(BTreeNode::new_leaf(vec![key], vec![value])))
+            self.children.push(Box::new(BTreeNode::new_leaf(vec![key], vec![value])));
+            (true, None)
         }
     }
 
@@ -172,22 +165,25 @@ mod tests {
         let node = BTreeNode::new(true);
 
         // act
-        let (_, node) = node.insert_as_root(1, 2);
-        let (_, node) = node.insert_as_root(2, 1000);
-        let (_, node) = node.insert_as_root(3, 32);
+        let (_, node) = node.insert_as_root(2, 2);
+        let (_, node) = node.insert_as_root(3, 1000);
+        let (_, node) = node.insert_as_root(1, 32);
         let (_, node) = node.insert_as_root(6, 0);
         let (_, node) = node.insert_as_root(4, 12);
-        // let (_, node) = node.insert_as_root(123, 78);
-        // let (_, node) = node.insert_as_root(5, 2);
-        // let (_, node) = node.insert_as_root(12, 0);
-        // let (_, node) = node.insert_as_root(111, 708);
-        // let (_, node) = node.insert_as_root(7, 10000);
-        // let (_, node) = node.insert_as_root(8, 78);
-        // let (_, node) = node.insert_as_root(13, 78);
-        // let (_, node) = node.insert_as_root(14, 78);
-        // let (_, node) = node.insert_as_root(15, 78);
-        // let (_, node) = node.insert_as_root(16, 78);
-        // let (_, node) = node.insert_as_root(20, 78);
+        let (_, node) = node.insert_as_root(123, 78);
+        let (_, node) = node.insert_as_root(5, 2);
+        let (_, node) = node.insert_as_root(12, 0);
+        let (_, node) = node.insert_as_root(111, 708);
+        let (_, node) = node.insert_as_root(7, 10000);
+        let (_, node) = node.insert_as_root(8, 78);
+        let (_, node) = node.insert_as_root(13, 78);
+        let (_, node) = node.insert_as_root(14, 78);
+        let (_, node) = node.insert_as_root(15, 78);
+        let (_, node) = node.insert_as_root(16, 78);
+        let (_, node) = node.insert_as_root(20, 78);
+        let (_, node) = node.insert_as_root(1023, 78);
+        let (_, node) = node.insert_as_root(933, 78);
+        let (_, node) = node.insert_as_root(2330, 78);
         println!("{:?}", node);
 
         // assert
