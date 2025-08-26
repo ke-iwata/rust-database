@@ -4,7 +4,7 @@
 
 use std::fmt::Debug;
 
-pub static NODE_SIZE: usize = 5;
+pub static NODE_SIZE: usize = 10;
 
 pub struct BTreeNode<K, V> {
     pub keys: Vec<K>,
@@ -67,13 +67,15 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
                     let (ok, new_node) = self.insert_to_child_node(key, value, idx);
 
                     // 子ノードがされた場合、新しい子ノードを挿入
-                    if let Some(new_node) = new_node {
+                    if let Some(mut new_node) = new_node {
                         // If the child was split, we need to insert the median key into this node
-                        let median_key = new_node.keys[0].clone();
-                        let median_value = new_node.values[0].clone();
+                        let median_key = new_node.keys.remove(0);
+                        let median_value = new_node.values.remove(0);
                         self.keys.insert(idx, median_key);
                         self.values.insert(idx, median_value);
-                        self.children.insert(idx + 1, Box::new(new_node));
+                        if !new_node.keys.is_empty() {
+                            self.children.insert(idx + 1, Box::new(new_node));
+                        }
 
                         // Nodeのサイズを超えないとき
                         if self.values.len() <= NODE_SIZE {
@@ -84,20 +86,17 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
                         let mid_size = NODE_SIZE / 2;
                         let right_keys = self.keys.split_off(mid_size + 1);
                         let right_values = self.values.split_off(mid_size + 1);
-                        let right_child = self.children.split_off(mid_size + 2);
-                        let mut right_node = BTreeNode {
+                        let right_child = if self.children.len() > mid_size + 2 {
+                            self.children.split_off(mid_size + 2)
+                        } else {
+                            Vec::new()
+                        };
+                        let right_node = BTreeNode {
                             keys: right_keys,
                             values: right_values,
                             children: right_child,
                             is_leaf: self.is_leaf,
                         };
-                        if right_node.children.len() == 1 {
-                            let child = right_node.children[0].as_ref();
-                            if right_node.keys[0] == child.keys[0] {
-                                right_node.children.clear();
-                                right_node.is_leaf = true;
-                            }
-                        }
                         return (true, Some(right_node));
                     }
                     return (ok, None);
@@ -138,14 +137,25 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
     fn insert_as_root(mut self, key: K, value: V) -> (bool, Self) {
         let (ok, new_node) = self.insert(key, value);
         if ok {
-            if let Some(new_node) = new_node {
-                let new_root = BTreeNode {
-                    keys: vec![new_node.keys[0].clone()],
-                    values: vec![new_node.values[0].clone()],
-                    children: vec![Box::new(self), Box::new(new_node)],
-                    is_leaf: false,
-                };
-                (true, new_root)
+            if let Some(mut new_node) = new_node {
+                if !new_node.keys.is_empty() {
+                    let keys = vec![new_node.keys.remove(0)];
+                    let values = vec![new_node.values.remove(0)];
+                    let children = if new_node.keys.is_empty() {
+                        vec![Box::new(self)]
+                    } else {
+                        vec![Box::new(self), Box::new(new_node)]
+                    };
+                    let new_root = BTreeNode {
+                        keys,
+                        values,
+                        children,
+                        is_leaf: false,
+                    };
+                    (true, new_root)
+                } else {
+                    (true, self)
+                }
             } else {
                 (true, self)
             }
@@ -166,8 +176,8 @@ mod tests {
 
         // act
         let (_, node) = node.insert_as_root(2, 2);
-        let (_, node) = node.insert_as_root(3, 1000);
         let (_, node) = node.insert_as_root(1, 32);
+        let (_, node) = node.insert_as_root(3, 1000);
         let (_, node) = node.insert_as_root(6, 0);
         let (_, node) = node.insert_as_root(4, 12);
         let (_, node) = node.insert_as_root(123, 78);
