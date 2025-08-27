@@ -4,8 +4,6 @@
 
 use std::fmt::Debug;
 
-pub static NODE_SIZE: usize = 10;
-
 pub struct BTreeNode<K, V> {
     pub keys: Vec<K>,
     pub values: Vec<V>,
@@ -20,7 +18,7 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> Debug for BTreeNode<K, V> {
 }
 
 impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
-    fn new(is_leaf: bool) -> Self {
+    pub fn new(is_leaf: bool) -> Self {
         BTreeNode {
             keys: Vec::new(),
             values: Vec::new(),
@@ -55,7 +53,7 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
         Ok(())
     }
 
-    pub fn insert(&mut self, key: K, value: V) -> (bool, Option<BTreeNode<K,V>>) {
+    pub fn insert(&mut self, key: K, value: V, node_size: usize) -> (bool, Option<BTreeNode<K,V>>) {
         match self.keys.binary_search(&key) {
             Ok(_idx) => {
                 // すでにあれば挿入しない
@@ -64,7 +62,7 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
             Err(idx) => {
                 // NodeがLeafではない場合、child Nodeにいれる
                 if !self.is_leaf {
-                    let (ok, new_node) = self.insert_to_child_node(key, value, idx);
+                    let (ok, new_node) = self.insert_to_child_node(key, value, idx, node_size);
 
                     // 子ノードがされた場合、新しい子ノードを挿入
                     if let Some(mut new_node) = new_node {
@@ -78,12 +76,12 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
                         }
 
                         // Nodeのサイズを超えないとき
-                        if self.values.len() <= NODE_SIZE {
+                        if self.values.len() <= node_size {
                             return (ok, None);
                         }
 
                         // Nodeのサイズを超えるときは分割
-                        let mid_size = NODE_SIZE / 2;
+                        let mid_size = node_size / 2;
                         let right_keys = self.keys.split_off(mid_size + 1);
                         let right_values = self.values.split_off(mid_size + 1);
                         let right_child = if self.children.len() > mid_size + 2 {
@@ -106,12 +104,12 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
                 self.keys.insert(idx, key);
                 self.values.insert(idx, value);
 
-                if self.keys.len() <= NODE_SIZE {
+                if self.keys.len() <= node_size {
                     // Nodeが収まっている場合はそのまま
                     (true, None)
                 } else {
                     // Nodeが満杯の場合、分割する
-                    let mid_size = NODE_SIZE / 2;
+                    let mid_size = node_size / 2;
                     let right_keys = self.keys.split_off(mid_size + 1);
                     let right_values = self.values.split_off(mid_size + 1);
                     (true, Some(BTreeNode::new_leaf(right_keys, right_values)))
@@ -120,9 +118,9 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
         }
     }
 
-    fn insert_to_child_node(&mut self, key: K, value: V, child_index: usize) -> (bool, Option<BTreeNode<K, V>>) {
+    fn insert_to_child_node(&mut self, key: K, value: V, child_index: usize, node_size: usize) -> (bool, Option<BTreeNode<K, V>>) {
         if let Some(child) = self.children.get_mut(child_index) {
-            let (ok, new_node) = child.insert(key, value);
+            let (ok, new_node) = child.insert(key, value, node_size);
             if ok {
                 (true, new_node)
             } else {
@@ -132,73 +130,5 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
             self.children.push(Box::new(BTreeNode::new_leaf(vec![key], vec![value])));
             (true, None)
         }
-    }
-
-    fn insert_as_root(mut self, key: K, value: V) -> (bool, Self) {
-        let (ok, new_node) = self.insert(key, value);
-        if ok {
-            if let Some(mut new_node) = new_node {
-                if !new_node.keys.is_empty() {
-                    let keys = vec![new_node.keys.remove(0)];
-                    let values = vec![new_node.values.remove(0)];
-                    let children = if new_node.keys.is_empty() {
-                        vec![Box::new(self)]
-                    } else {
-                        vec![Box::new(self), Box::new(new_node)]
-                    };
-                    let new_root = BTreeNode {
-                        keys,
-                        values,
-                        children,
-                        is_leaf: false,
-                    };
-                    (true, new_root)
-                } else {
-                    (true, self)
-                }
-            } else {
-                (true, self)
-            }
-        } else {
-            (false, self)
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_insert() {
-        // arrange
-        let node = BTreeNode::new(true);
-
-        // act
-        let (_, node) = node.insert_as_root(2, 2);
-        let (_, node) = node.insert_as_root(1, 32);
-        let (_, node) = node.insert_as_root(3, 1000);
-        let (_, node) = node.insert_as_root(6, 0);
-        let (_, node) = node.insert_as_root(4, 12);
-        let (_, node) = node.insert_as_root(123, 78);
-        let (_, node) = node.insert_as_root(5, 2);
-        let (_, node) = node.insert_as_root(12, 0);
-        let (_, node) = node.insert_as_root(111, 708);
-        let (_, node) = node.insert_as_root(7, 10000);
-        let (_, node) = node.insert_as_root(8, 78);
-        let (_, node) = node.insert_as_root(13, 78);
-        let (_, node) = node.insert_as_root(14, 78);
-        let (_, node) = node.insert_as_root(15, 78);
-        let (_, node) = node.insert_as_root(16, 78);
-        let (_, node) = node.insert_as_root(20, 78);
-        let (_, node) = node.insert_as_root(1023, 78);
-        let (_, node) = node.insert_as_root(933, 78);
-        let (_, node) = node.insert_as_root(2330, 78);
-        println!("{:?}", node);
-
-        // assert
-        // assert_eq!(node.keys, vec![1, 2, 5]);
-        // assert_eq!(node.values, vec![2, 3, 10]);
-        // assert_eq!(node.is_leaf, true);
     }
 }
