@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-
+use std::mem;
 mod node;
 
 #[derive(Debug)]
@@ -23,7 +23,6 @@ impl<K: Ord + Debug + Clone, V: Debug + Clone> BTree<K, V> {
                 // 新しいrootを作り、childrenに元のrootと昇格ノードを入れる
                 let keys = vec![new_node.keys.remove(0)];
                 let values = vec![new_node.values.remove(0)];
-                use std::mem;
                 let old_root = mem::replace(&mut self.root, Box::new(node::BTreeNode::new(true)));
                 let children = vec![old_root, Box::new(new_node)];
                 let new_root = node::BTreeNode {
@@ -51,7 +50,7 @@ mod tests {
     #[test]
     fn test_insert() {
         // arrange
-        let mut btree = BTree::new(2);
+        let mut btree = BTree::new(1);
 
         // act
         btree.insert(2, 2);
