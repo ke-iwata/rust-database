@@ -42,7 +42,6 @@ impl<K: Ord + Debug + Clone, V: Debug + Clone> BTree<K, V> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

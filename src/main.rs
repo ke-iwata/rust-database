@@ -1,4 +1,3 @@
 mod btree;
 
-fn main() {
-}
+fn main() {}

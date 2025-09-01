@@ -31,7 +31,12 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
         }
     }
 
-    pub fn insert(&mut self, key: K, value: V, node_size: usize) -> (bool, Option<BTreeNode<K,V>>) {
+    pub fn insert(
+        &mut self,
+        key: K,
+        value: V,
+        node_size: usize,
+    ) -> (bool, Option<BTreeNode<K, V>>) {
         match self.keys.binary_search(&key) {
             Ok(_idx) => {
                 // すでにあれば挿入しない
@@ -47,7 +52,13 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
         }
     }
 
-    fn insert_as_not_leaf(&mut self, key: K, value: V, idx: usize, node_size: usize) -> (bool, Option<BTreeNode<K, V>>) {
+    fn insert_as_not_leaf(
+        &mut self,
+        key: K,
+        value: V,
+        idx: usize,
+        node_size: usize,
+    ) -> (bool, Option<BTreeNode<K, V>>) {
         let (ok, new_node) = self.insert_to_child_node(key, value, idx, node_size);
 
         // 子ノードがされた場合、新しい子ノードを挿入
@@ -89,7 +100,14 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
         }
     }
 
-    fn insert_as_leaf(&mut self, key: K, value: V, idx: usize, node_size: usize) -> (bool, Option<BTreeNode<K, V>>) {// Leaf Nodeの場合、ここに挿入
+    fn insert_as_leaf(
+        &mut self,
+        key: K,
+        value: V,
+        idx: usize,
+        node_size: usize,
+    ) -> (bool, Option<BTreeNode<K, V>>) {
+        // Leaf Nodeの場合、ここに挿入
         self.keys.insert(idx, key);
         self.values.insert(idx, value);
 
@@ -105,7 +123,13 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
         }
     }
 
-    fn insert_to_child_node(&mut self, key: K, value: V, child_index: usize, node_size: usize) -> (bool, Option<BTreeNode<K, V>>) {
+    fn insert_to_child_node(
+        &mut self,
+        key: K,
+        value: V,
+        child_index: usize,
+        node_size: usize,
+    ) -> (bool, Option<BTreeNode<K, V>>) {
         if let Some(child) = self.children.get_mut(child_index) {
             let (ok, new_node) = child.insert(key, value, node_size);
             if ok {
@@ -114,7 +138,8 @@ impl<K: Ord + Clone + Debug, V: Clone + Debug> BTreeNode<K, V> {
                 (false, None)
             }
         } else {
-            self.children.push(Box::new(BTreeNode::new_leaf(vec![key], vec![value])));
+            self.children
+                .push(Box::new(BTreeNode::new_leaf(vec![key], vec![value])));
             (true, None)
         }
     }
